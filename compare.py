@@ -4,6 +4,136 @@ from datetime import datetime
 import concurrent.futures
 import time
 import sys
+from typing import Dict, List, Tuple, Optional
+
+class ColumnMapper:
+    """Handles column mapping between two datasets with different schemas."""
+
+    def __init__(self, mapping_file_path: Optional[str] = None):
+        self.mapping_file_path = mapping_file_path
+        self.key_mappings: Dict[str, str] = {}
+        self.data_mappings: Dict[str, str] = {}
+        self.ignore_file1: List[str] = []
+        self.ignore_file2: List[str] = []
+
+        if mapping_file_path:
+            self._load_mapping()
+
+    def _load_mapping(self):
+        """Load and parse the mapping file."""
+        try:
+            if not os.path.exists(self.mapping_file_path):
+                raise FileNotFoundError(f"Mapping file not found: {self.mapping_file_path}")
+
+            mapping_df = pl.read_csv(self.mapping_file_path)
+
+            # Validate required columns
+            required_cols = ['mapping_type', 'file1_column', 'file2_column']
+            missing_cols = [col for col in required_cols if col not in mapping_df.columns]
+            if missing_cols:
+                raise ValueError(f"Mapping file missing required columns: {missing_cols}")
+
+            # Process each mapping row
+            for row in mapping_df.iter_rows(named=True):
+                mapping_type = row['mapping_type'].lower() if row['mapping_type'] else ''
+                file1_col = row['file1_column'] if row['file1_column'] else None
+                file2_col = row['file2_column'] if row['file2_column'] else None
+
+                if mapping_type == 'key':
+                    if file1_col and file2_col:
+                        self.key_mappings[file1_col] = file2_col
+                elif mapping_type == 'data':
+                    if file1_col and file2_col:
+                        self.data_mappings[file1_col] = file2_col
+                elif mapping_type == 'ignore':
+                    if file1_col and not file2_col:
+                        self.ignore_file1.append(file1_col)
+                    elif file2_col and not file1_col:
+                        self.ignore_file2.append(file2_col)
+
+        except Exception as e:
+            raise Exception(f"Error loading mapping file: {str(e)}")
+
+    def apply_mapping(self, df1: pl.DataFrame, df2: pl.DataFrame) -> Tuple[pl.DataFrame, pl.DataFrame, List[str]]:
+        """Apply column mapping to both dataframes and return mapped key columns."""
+        mapped_df1 = df1.clone()
+        mapped_df2 = df2.clone()
+
+        # Validate that mapped columns exist
+        self._validate_columns(df1, df2)
+
+        # Remove ignored columns
+        if self.ignore_file1:
+            existing_ignore_file1 = [col for col in self.ignore_file1 if col in mapped_df1.columns]
+            if existing_ignore_file1:
+                mapped_df1 = mapped_df1.drop(existing_ignore_file1)
+
+        if self.ignore_file2:
+            existing_ignore_file2 = [col for col in self.ignore_file2 if col in mapped_df2.columns]
+            if existing_ignore_file2:
+                mapped_df2 = mapped_df2.drop(existing_ignore_file2)
+
+        # Apply data column mappings (rename file2 columns to match file1)
+        rename_map_file2 = {}
+        for file1_col, file2_col in self.data_mappings.items():
+            if file2_col in mapped_df2.columns:
+                rename_map_file2[file2_col] = file1_col
+
+        if rename_map_file2:
+            mapped_df2 = mapped_df2.rename(rename_map_file2)
+
+        # Apply key column mappings (rename file2 key columns to match file1)
+        key_rename_map_file2 = {}
+        for file1_key, file2_key in self.key_mappings.items():
+            if file2_key in mapped_df2.columns:
+                key_rename_map_file2[file2_key] = file1_key
+
+        if key_rename_map_file2:
+            mapped_df2 = mapped_df2.rename(key_rename_map_file2)
+
+        # Determine the final key columns (use file1 column names)
+        mapped_key_columns = list(self.key_mappings.keys()) if self.key_mappings else []
+
+        return mapped_df1, mapped_df2, mapped_key_columns
+
+    def _validate_columns(self, df1: pl.DataFrame, df2: pl.DataFrame):
+        """Validate that all mapped columns exist in their respective dataframes."""
+        errors = []
+
+        # Check file1 columns
+        for file1_col in list(self.key_mappings.keys()) + list(self.data_mappings.keys()) + self.ignore_file1:
+            if file1_col and file1_col not in df1.columns:
+                errors.append(f"Column '{file1_col}' not found in file1")
+
+        # Check file2 columns
+        for file2_col in list(self.key_mappings.values()) + list(self.data_mappings.values()) + self.ignore_file2:
+            if file2_col and file2_col not in df2.columns:
+                errors.append(f"Column '{file2_col}' not found in file2")
+
+        if errors:
+            raise ValueError("Column mapping validation failed:\n" + "\n".join(errors))
+
+    def get_mapping_summary(self) -> str:
+        """Return a summary of the applied mappings."""
+        summary = []
+        if self.key_mappings:
+            summary.append(f"Key mappings: {len(self.key_mappings)}")
+            for f1, f2 in self.key_mappings.items():
+                summary.append(f"  {f1} ↔ {f2}")
+
+        if self.data_mappings:
+            summary.append(f"Data mappings: {len(self.data_mappings)}")
+            for f1, f2 in self.data_mappings.items():
+                summary.append(f"  {f1} ↔ {f2}")
+
+        if self.ignore_file1 or self.ignore_file2:
+            summary.append(f"Ignored columns: {len(self.ignore_file1 + self.ignore_file2)}")
+            for col in self.ignore_file1:
+                summary.append(f"  {col} (file1)")
+            for col in self.ignore_file2:
+                summary.append(f"  {col} (file2)")
+
+        return "\n".join(summary) if summary else "No mappings applied"
 
 def get_file_header(path: str) -> list[str]:
     """Quickly reads the header of a CSV or Excel file without loading the entire file."""
@@ -168,7 +298,7 @@ def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list
 
     return renamed_mismatches, unpivoted_mismatches
 
-def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2") -> tuple:
+def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2", mapping_file: Optional[str] = None) -> tuple:
     """
     Compares two Polars DataFrames and returns a comprehensive analysis including missing rows,
     mismatches, duplicates, and an unpivoted mismatch report.
@@ -176,6 +306,22 @@ def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], fi
     print("Comparing files...")
     sys.stdout.flush()
     start_time = time.time()
+
+    # Apply column mapping if provided
+    column_mapper = None
+    if mapping_file:
+        print("Applying column mapping...")
+        column_mapper = ColumnMapper(mapping_file)
+        df1, df2, mapped_keys = column_mapper.apply_mapping(df1, df2)
+
+        # Use mapped keys if available, otherwise fall back to provided keys
+        if mapped_keys:
+            keys = mapped_keys
+            print(f"Using mapped key columns: {', '.join(keys)}")
+
+        print("Mapping applied successfully.")
+        print(f"Mapping summary:\n{column_mapper.get_mapping_summary()}")
+        sys.stdout.flush()
 
     df1_shape = df1.shape
     df2_shape = df2.shape

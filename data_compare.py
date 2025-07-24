@@ -1,5 +1,12 @@
 import argparse
-from compare import read_files_in_parallel, compare_dataframes, get_filename_without_extension, create_output_folder, write_results_in_parallel, get_file_header
+from compare import (
+    read_files_in_parallel,
+    compare_dataframes,
+    get_filename_without_extension,
+    create_output_folder,
+    write_results_in_parallel,
+    get_file_header
+)
 import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -20,7 +27,7 @@ class OutputConfig:
     order: int
 
 class ResultsManager:
-    """Centralizes result file management and GUI output generation."""
+    """Manages result file organization and GUI output generation."""
 
     OUTPUT_CONFIGS = [
         OutputConfig("missing_in_file1", "Missing_in_{file1_name}.csv", "Open Missing in '{file1_name}'", 1),
@@ -67,22 +74,26 @@ class ResultsManager:
         return buttons_config
 
 def cli_mode():
-    parser = argparse.ArgumentParser(description='A tool to compare two data files (CSV or Excel).')
-    parser.add_argument('file1', help='First data file')
-    parser.add_argument('file2', help='Second data file')
-    parser.add_argument('--keys', nargs='+', required=True, help='Key columns to join files on (space-separated)')
+    """Command line interface for data comparison."""
+    parser = argparse.ArgumentParser(description='DataCompare - A tool to compare CSV and Excel files using Polars.')
+    parser.add_argument('file1', help='First data file (CSV or Excel)')
+    parser.add_argument('file2', help='Second data file (CSV or Excel)')
+    parser.add_argument('--keys', help='Key columns for comparison (comma-separated). Optional if mapping file provided.')
+    parser.add_argument('--mapping', help='Column mapping file (CSV format)')
     parser.add_argument('--output', help='Output folder base name (optional)')
     args = parser.parse_args()
 
-    keys = []
-    for key in args.keys:
-        keys.extend(key.replace(',', ' ').split())
-    args.keys = [key.strip() for key in keys if key.strip()]
+    # Validate arguments
+    if not args.keys and not args.mapping:
+        parser.error("Either --keys or --mapping must be provided")
+
+    # Parse key columns - split only on commas, preserve spaces in column names
+    args.keys = [key.strip() for key in args.keys.split(',') if key.strip()] if args.keys else []
 
     try:
         start_time = time.time()
 
-        print(f"Loading files...")
+        print("Loading files...")
         df1, df2 = read_files_in_parallel(args.file1, args.file2)
         load_time = time.time() - start_time
         print(f"Files loaded in {load_time:.2f} seconds.")
@@ -91,66 +102,69 @@ def cli_mode():
         file2_name = get_filename_without_extension(args.file2)
         results_manager = ResultsManager(file1_name, file2_name)
 
-        results = compare_dataframes(df1, df2, args.keys, file1_name, file2_name)
+        # Perform comparison with optional mapping
+        comparison_start = time.time()
+        results = compare_dataframes(df1, df2, args.keys, file1_name, file2_name, args.mapping)
         missing_in_file1, missing_in_file2, mismatches, duplicates_file1, duplicates_file2, unpivoted_mismatches, df1_shape, df2_shape = results
 
+        # Display statistics
         print(f"\n--- Statistics ---")
         print(f"File 1 ({os.path.basename(args.file1)}): {df1_shape[0]} rows, {df1_shape[1]} columns")
         print(f"File 2 ({os.path.basename(args.file2)}): {df2_shape[0]} rows, {df2_shape[1]} columns")
-        print(f'Rows missing in {file2_name}: {len(missing_in_file1)}')
-        print(f'Rows missing in {file1_name}: {len(missing_in_file2)}')
-        print(f'Row Mismatches: {len(mismatches)}')
-        print(f'Duplicate keys in {file1_name}: {len(duplicates_file1)}')
-        print(f'Duplicate keys in {file2_name}: {len(duplicates_file2)}')
-        print(f'Value (unpivoted) Mismatches: {len(unpivoted_mismatches)}')
-        print(f"--------------------")
+        print(f"Rows missing in {file2_name}: {len(missing_in_file1)}")
+        print(f"Rows missing in {file1_name}: {len(missing_in_file2)}")
+        print(f"Row Mismatches: {len(mismatches)}")
+        print(f"Duplicate keys in {file1_name}: {len(duplicates_file1)}")
+        print(f"Duplicate keys in {file2_name}: {len(duplicates_file2)}")
+        print(f"Value (unpivoted) Mismatches: {len(unpivoted_mismatches)}")
+        print("--------------------")
 
+        # Create output folder and save results
         output_folder = create_output_folder()
-        print(f'\nCreated output folder: {output_folder}')
+        print(f"\nCreated output folder: {output_folder}")
 
-        comparison_results = {
-            'missing_in_file1': missing_in_file2,
-            'missing_in_file2': missing_in_file1,
+        write_start = time.time()
+        results_dict = {
+            'missing_in_file1': missing_in_file1,
+            'missing_in_file2': missing_in_file2,
             'mismatches': mismatches,
             'duplicates_file1': duplicates_file1,
             'duplicates_file2': duplicates_file2,
-            'unpivoted_mismatches': unpivoted_mismatches
+            'unpivoted_mismatches': unpivoted_mismatches,
         }
 
-        results_dict = results_manager.prepare_results_for_writing(comparison_results)
+        prepared_results = results_manager.prepare_results_for_writing(results_dict)
+        saved_files = write_results_in_parallel(prepared_results, output_folder)
 
-        print("\nWriting results...")
-        write_start = time.time()
-        saved_files = write_results_in_parallel(results_dict, output_folder)
         write_time = time.time() - write_start
+        print(f"\nWriting results...")
         print(f"Results written in {write_time:.2f} seconds.")
 
-        if saved_files:
-            print(f'\nResults saved to:')
-            for file in saved_files:
-                abs_path = os.path.abspath(file).replace('\\', '/')
-                print(f'  - file:///{abs_path}')
-        else:
-            print('\nNo differences or duplicates found.')
+        # Display saved file paths with file:// prefix for clickable links
+        print(f"\nResults saved to:")
+        for file_path in saved_files:
+            abs_path = os.path.abspath(file_path)
+            print(f"  - file:///{abs_path.replace(os.sep, '/')}")
 
         total_time = time.time() - start_time
-        print(f'\nTotal processing time: {total_time:.2f} seconds.')
+        print(f"\nTotal processing time: {total_time:.2f} seconds.")
 
     except Exception as e:
-        print(f"Error: {str(e)}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
 class DataCompareApp(TkinterDnD.Tk):
     """A class-based GUI for the Data Comparison Tool."""
     def __init__(self):
         super().__init__()
-        self.title('Data Comparison Tool')
-        self.geometry('800x800')
+        self.title('DataCompare - Advanced File Comparison Tool')
+        self.geometry('800x900')
 
         # --- Application State ---
         self.file1_var = tk.StringVar()
         self.file2_var = tk.StringVar()
         self.keys_var = tk.StringVar()
+        self.mapping_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Ready")
         self.comparison_results = {}
         self.results_manager: Optional[ResultsManager] = None
@@ -207,21 +221,41 @@ class DataCompareApp(TkinterDnD.Tk):
     def _create_input_widgets(self, parent_frame):
         """Creates the file and key input widgets."""
         ttk.Label(parent_frame, text="File 1:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
-        file1_entry = ttk.Entry(parent_frame, textvariable=self.file1_var, width=70)
+        file1_entry = ttk.Entry(parent_frame, textvariable=self.file1_var, width=60)
         file1_entry.grid(row=0, column=1, padx=5, pady=2)
         ttk.Button(parent_frame, text="Browse...", command=lambda: self._browse_file(self.file1_var)).grid(row=0, column=2, padx=5, pady=2)
         self._setup_drag_and_drop(file1_entry, self.file1_var, is_file_entry=True)
 
         ttk.Label(parent_frame, text="File 2:").grid(row=1, column=0, sticky='w', padx=5, pady=2)
-        file2_entry = ttk.Entry(parent_frame, textvariable=self.file2_var, width=70)
+        file2_entry = ttk.Entry(parent_frame, textvariable=self.file2_var, width=60)
         file2_entry.grid(row=1, column=1, padx=5, pady=2)
         ttk.Button(parent_frame, text="Browse...", command=lambda: self._browse_file(self.file2_var)).grid(row=1, column=2, padx=5, pady=2)
         self._setup_drag_and_drop(file2_entry, self.file2_var, is_file_entry=True)
 
-        ttk.Label(parent_frame, text="Key Columns:").grid(row=2, column=0, sticky='w', padx=5, pady=2)
-        keys_entry = ttk.Entry(parent_frame, textvariable=self.keys_var, width=70)
-        keys_entry.grid(row=2, column=1, padx=5, pady=2)
+        # Add separator
+        ttk.Separator(parent_frame, orient='horizontal').grid(row=2, column=0, columnspan=3, sticky='ew', pady=10)
+
+        ttk.Label(parent_frame, text="Column Mapping:").grid(row=3, column=0, sticky='w', padx=5, pady=2)
+        mapping_entry = ttk.Entry(parent_frame, textvariable=self.mapping_var, width=60)
+        mapping_entry.grid(row=3, column=1, padx=5, pady=2)
+        ttk.Button(parent_frame, text="Browse...", command=self._browse_mapping_file).grid(row=3, column=2, padx=5, pady=2)
+        self._setup_drag_and_drop(mapping_entry, self.mapping_var)
+
+        # Help text for mapping
+        help_text = ttk.Label(parent_frame, text="Optional: CSV file with mapping_type,file1_column,file2_column format",
+                             font=('Helvetica', 8), foreground='gray')
+        help_text.grid(row=4, column=1, sticky='w', padx=5, pady=(0, 5))
+
+        ttk.Label(parent_frame, text="Key Columns:").grid(row=5, column=0, sticky='w', padx=5, pady=2)
+        keys_entry = ttk.Entry(parent_frame, textvariable=self.keys_var, width=60)
+        keys_entry.grid(row=5, column=1, padx=5, pady=2)
+        ttk.Button(parent_frame, text="Suggest", command=self._suggest_key_columns).grid(row=5, column=2, padx=5, pady=2)
         self._setup_drag_and_drop(keys_entry, self.keys_var)
+
+        # Help text for keys
+        help_text2 = ttk.Label(parent_frame, text="Comma-separated. Optional if mapping file defines key columns",
+                              font=('Helvetica', 8), foreground='gray')
+        help_text2.grid(row=6, column=1, sticky='w', padx=5, pady=(0, 5))
 
     def _create_dashboard_widgets(self, parent_frame):
         """Creates the labels for displaying comparison statistics."""
@@ -271,6 +305,30 @@ class DataCompareApp(TkinterDnD.Tk):
             var.set(path)
             self._suggest_key_columns()
 
+    def _browse_mapping_file(self):
+        """Opens a file dialog for selecting a mapping file."""
+        path = filedialog.askopenfilename(
+            title="Select Column Mapping File",
+            filetypes=[('CSV Files', '*.csv'), ('All Files', '*.*')]
+        )
+        if path:
+            self.mapping_var.set(path)
+            self._validate_mapping_file()
+
+    def _validate_mapping_file(self):
+        """Validates the selected mapping file and provides feedback."""
+        mapping_path = self.mapping_var.get()
+        if not mapping_path:
+            return
+
+        try:
+            from compare import ColumnMapper
+            mapper = ColumnMapper(mapping_path)
+            self.status_var.set(f"Mapping file loaded: {len(mapper.key_mappings)} key, {len(mapper.data_mappings)} data mappings")
+        except Exception as e:
+            self.status_var.set(f"Mapping file error: {str(e)}")
+            messagebox.showerror("Mapping File Error", f"Error loading mapping file:\n{str(e)}")
+
     def _suggest_key_columns(self):
         """Suggests common columns as keys if both file paths are available."""
         f1 = self.file1_var.get()
@@ -303,9 +361,15 @@ class DataCompareApp(TkinterDnD.Tk):
 
     def _run_comparison(self):
         """Starts the file comparison process in a background thread."""
-        if not self.file1_var.get() or not self.file2_var.get() or not self.keys_var.get():
-            messagebox.showerror('Error', 'Please select both files and enter key columns.')
+        if not self.file1_var.get() or not self.file2_var.get():
+            messagebox.showerror('Error', 'Please select both files.')
             return
+
+        # Validate that either keys or mapping is provided
+        if not self.keys_var.get() and not self.mapping_var.get():
+            messagebox.showerror('Error', 'Please provide either key columns or a mapping file.')
+            return
+
         self._clear_previous_results()
         self.compare_button.config(state='disabled')
         thread = threading.Thread(target=self._comparison_worker, daemon=True)
@@ -318,13 +382,14 @@ class DataCompareApp(TkinterDnD.Tk):
             df1, df2 = read_files_in_parallel(self.file1_var.get(), self.file2_var.get())
 
             self.after(0, lambda: self.status_var.set("Comparing files..."))
-            key_cols = [k.strip() for k in self.keys_var.get().split(',')]
+            key_cols = [k.strip() for k in self.keys_var.get().split(',') if k.strip()] if self.keys_var.get() else []
 
             file1_name = get_filename_without_extension(self.file1_var.get())
             file2_name = get_filename_without_extension(self.file2_var.get())
             self.results_manager = ResultsManager(file1_name, file2_name)
 
-            results = compare_dataframes(df1, df2, key_cols, file1_name, file2_name)
+            mapping_file = self.mapping_var.get() if self.mapping_var.get() else None
+            results = compare_dataframes(df1, df2, key_cols, file1_name, file2_name, mapping_file)
             self.after(0, self._update_gui_with_results, results)
         except Exception as e:
             self.after(0, lambda: messagebox.showerror('Error', str(e)))

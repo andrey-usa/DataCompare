@@ -1,6 +1,20 @@
-# File Comparison Tool - Excel & CSV
+# DataCompare - Excel & CSV Comparison Tool
 
-A Python application for comparing Excel and CSV files using Polars for fast data processing. Supports both CLI and GUI interfaces with parallel processing for optimal performance.
+A high-performance Python application for comparing Excel and CSV files using Polars for lightning-fast data processing. Supports both CLI and GUI interfaces with parallel processing for optimal performance.
+
+## Features
+
+- **Multi-format support**: Excel (.xlsx, .xls) and CSV (.csv) files
+- **Lightning-fast processing**: Pure Polars implementation for maximum performance
+- **Parallel operations**: File loading, comparison, and writing operations run concurrently
+- **Comprehensive analysis**: 
+  - Missing rows in each file
+  - Row-level mismatches
+  - Value-level unpivoted mismatches
+  - Duplicate key detection
+- **Organized output**: Timestamped folders with descriptive file names
+- **Dual interface**: Both command-line and graphical user interface
+- **Performance monitoring**: Detailed timing information for each operation
 
 ## Installation
 
@@ -12,76 +26,89 @@ pip install -r requirements.txt
 ## Usage
 
 ### Command Line Interface (CLI)
-```bash
-# Compare Excel files
-python excel_compare.py file1.xlsx file2.xlsx --keys KeyColumn1 KeyColumn2
 
-# Compare CSV files  
-python excel_compare.py data1.csv data2.csv --keys ID Name
-
-# Mix formats (Excel vs CSV)
-python excel_compare.py sales.xlsx sales_backup.csv --keys ProductID
+Compare files with key columns
+```commandline
+python data_compare.py file1.xlsx file2.xlsx --keys KeyColumn1,KeyColumn2
+```
+Compare files with different schemas using mapping
+```commandline
+python data_compare.py sales_prod.csv sales_dev.csv --mapping column_mapping.csv
+```
+Mixed approach - mapping file with additional keys
+```commandline
+python data_compare.py data1.csv data2.csv --keys ID,Name --mapping field_mapping.csv
 ```
 
-This will:
-- Compare the two files using the specified key columns
-- Create a timestamped folder (e.g., `comparison_20250723_143022`)
-- Output differences with descriptive names based on actual file names
-- Print summary statistics and performance metrics to console
+**Note**: Use commas (`,`) as separators for multiple key columns - spaces in column names are supported.
+
+### Column Mapping File
+
+When comparing files with different column names or schemas, use a CSV mapping file:
+
+```csv
+mapping_type,file1_column,file2_column
+key,CustomerID,customer_id
+key,ProductCode,product_code
+data,CustomerName,customer_name
+data,OrderDate,order_date
+data,Amount,order_amount
+ignore,InternalID,
+ignore,,metadata_column
+```
+
+**Mapping Types:**
+- `key`: Columns to use for joining/matching rows
+- `data`: Columns to compare for differences  
+- `ignore`: Columns to exclude from comparison
 
 ### Graphical User Interface (GUI)
-```bash
-python excel_compare.py --gui
+```commandline
+python data_compare.py --gui
 ```
 
-The GUI allows you to:
-- Browse and select Excel (.xlsx, .xls) or CSV (.csv) files
-- Enter key columns (comma-separated)
-- Run comparison and view results with performance metrics
-- Save results to timestamped folders with descriptive file names
+The GUI provides:
+- File browser with drag-and-drop support
+- Column mapping file selection with validation
+- Auto-populated key column suggestions
+- Real-time comparison dashboard
+- Direct links to open result files
+- Performance metrics display
 
-## Features
+## Output Files
 
-- **Multi-format support**: Excel (.xlsx, .xls) and CSV (.csv) files
-- **Lightning-fast CSV processing**: Native polars CSV reading
-- **Optimized Excel reading**: Multiple strategies for best performance
-- **Parallel processing**: File loading, comparison, and writing operations run in parallel
-- **Performance monitoring**: Detailed timing information for each operation
-- **Descriptive output**: Files named based on actual file names
-- **Organized storage**: Each comparison creates a timestamped subfolder
-- **Clear terminology**: "Missing in [filename]" instead of generic "added/removed"
-- **Comprehensive comparison**: Identifies missing rows and mismatches
-- **Error handling**: Validates files and key columns with helpful error messages
-- **Flexible interface**: Supports both CLI and GUI workflows
+Each comparison creates a timestamped folder with the following files:
+- `Missing_in_<file1_name>.csv` - Rows present in file2 but not in file1
+- `Missing_in_<file2_name>.csv` - Rows present in file1 but not in file2  
+- `Row_Mismatches_<file1>_vs_<file2>.csv` - Rows with same keys but different values
+- `Value_Unpivoted_Mismatches_<file1>_vs_<file2>.csv` - Column-level differences in unpivoted format
+- `Duplicates_in_<file_name>.csv` - Duplicate key entries (if found)
 
-## Performance Benefits
+## Performance
 
-- **CSV files**: ~10-100x faster than Excel (native polars reading)
-- **Excel files**: ~15-47x faster with optimized reading strategies
-- **Parallel operations**: Up to 3x faster overall processing
-- **Memory efficient**: Chunked reading for large files
-
-## Output Structure
-
-Each comparison creates a timestamped folder like `comparison_20250723_143022/` containing:
-
-- `Missing_in_[file1_name].csv`: Rows present in file2 but not in file1
-- `Missing_in_[file2_name].csv`: Rows present in file1 but not in file2  
-- `Mismatches_[file1_name]_vs_[file2_name].csv`: Rows with same keys but different values
-
-Example output for comparing `sales_q1.csv` vs `sales_q2.xlsx`:
-```
-comparison_20250723_143022/
-├── Missing_in_sales_q1.csv
-├── Missing_in_sales_q2.csv
-└── Mismatches_sales_q1_vs_sales_q2.csv
-```
+- **CSV files**: Optimized for large datasets (1M+ rows)
+- **Excel files**: Uses fastexcel engine for high-performance Excel processing
+- **Parallel processing**: Concurrent file loading and comparison operations
+- **Memory efficient**: Streaming operations where possible
 
 ## Requirements
 
-- Python 3.7+
-- polars (fast DataFrame operations)
-- pandas (Excel file compatibility)
-- openpyxl (Excel file support)
-- pyarrow (optimized data processing)
-- tkinter (built-in for GUI)
+- Python 3.8+
+- polars
+- pyarrow
+- fastexcel (required for Excel file support)
+- tkinterdnd2 (for GUI drag-and-drop)
+
+## Example Output
+
+```
+--- Statistics ---
+File 1 (sales_q1.csv): 1048556 rows, 12 columns
+File 2 (sales_q2.csv): 1044022 rows, 12 columns
+Rows missing in sales_q2: 20
+Rows missing in sales_q1: 4567
+Row Mismatches: 1673
+Duplicate keys in sales_q1: 0
+Duplicate keys in sales_q2: 14
+Value (unpivoted) Mismatches: 1706
+```

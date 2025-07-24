@@ -1,5 +1,4 @@
 polars
-pandas
-openpyxl
 pyarrow
 tkinterdnd2
+fastexcel
