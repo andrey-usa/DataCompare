@@ -1,0 +1,25 @@
+{
+  "name": "DataCompare Dev",
+  // Use the official Python development container as a base. This sets up
+  // Python 3.11 with typical build tools on a Debian base image.
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    // Include Node.js (LTS) for optional tooling such as GitHub Copilot chat.
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" }
+  },
+  // After the container is created, install project dependencies. We install both
+  // the primary requirements and the development requirements so tests and the AI
+  // refactoring tools work as expected.
+  "postCreateCommand": "pip install -r requirements.txt && pip install -r requirements-dev.txt",
+  "customizations": {
+    "vscode": {
+      // Pre‑install useful VS Code extensions for Python development, linting and AI assistance.
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter",
+        "GitHub.copilot"
+      ]
+    }
+  }
+}
