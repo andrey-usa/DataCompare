@@ -37,13 +37,12 @@ jobs:
       - name: Run AI refactoring
         # Use Aider to apply the instructions from ai/prompts/daily_objectives.md.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-        python -m aider.main \
-        --repo . \
-        --model gpt-4o \
-        --apply-suggestions \
-        --message "$(cat ai/prompts/daily_objectives.md)"
+   env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+continue-on-error: true
+run: |
+  aider --yes --message-file ai/prompts/daily_objectives.md --model gpt-4o || trueompts/daily_objectives.md)"
 
       - name: Run tests on refactored code
         run: |
