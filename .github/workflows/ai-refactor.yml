@@ -39,11 +39,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          aider \
-            --repo-dir . \
-            --model gpt-4o \
-            --apply-suggestions \
-            --message "$(cat ai/prompts/daily_objectives.md)"
+        python -m aider.main \
+        --repo . \
+        --model gpt-4o \
+        --apply-suggestions \
+        --message "$(cat ai/prompts/daily_objectives.md)"
 
       - name: Run tests on refactored code
         run: |
