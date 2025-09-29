@@ -1,11 +1,11 @@
 import polars as pl
 from pathlib import Path
-iimport sys
+import sys
+# Add the repository root to sys.path so that the compare module can be imported
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from compare import compare_dataframes
 
-
-def test_compare_sales():
+def test_compare_sales() -> None:
     """Test compare_dataframes using pre-generated sales CSV files."""
     # Determine file paths for the pre-generated CSVs relative to this file
     base_path = Path(__file__).parent / "data"
