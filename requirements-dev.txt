@@ -1,0 +1,11 @@
+# Development requirements for the DataCompare project.
+#
+# These packages are used for testing, linting, benchmarking and the AI
+# refactoring workflow. They are not needed at runtime, but should be
+# installed in development and CI environments.
+
+pytest
+pytest-benchmark
+ruff
+black
+aider
