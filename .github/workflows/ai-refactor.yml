@@ -39,7 +39,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python -m aider \
+          aider \
             --repo-dir . \
             --model gpt-4o \
             --apply-suggestions \
