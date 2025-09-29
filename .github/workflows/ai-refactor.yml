@@ -42,9 +42,8 @@ jobs:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 continue-on-error: true
 run: |
-  aider --yes --message-file ai/prompts/daily_objectives.md --model gpt-4o || trueompts/daily_objectives.md)"
-
-      - name: Run tests on refactored code
+  a  ider --yes --message-file ai/prompts/daily_objectives.md --model gpt-4o || true
+     - name: Run tests on refactored code
         run: |
           pytest -q
 
