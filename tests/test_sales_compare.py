@@ -1,5 +1,7 @@
 import polars as pl
 from pathlib import Path
+iimport sys
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 from compare import compare_dataframes
 
 
