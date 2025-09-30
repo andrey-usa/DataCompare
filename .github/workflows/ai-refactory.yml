@@ -8,7 +8,6 @@ on:
 jobs:
   ai-refactor:
     runs-on: ubuntu-latest
-    # Set GH_TOKEN globally so GitHub CLI can authenticate throughout the job
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -31,15 +30,18 @@ jobs:
         run: pytest --benchmark-only -q
 
       - name: Install GitHub Copilot CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           sudo apt-get update -y
           sudo apt-get install -y gh
           gh extension install github/copilot-cli
 
       - name: Run GitHub Copilot refactoring
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
         run: |
-          # Use Copilot CLI to apply suggestions from the prompt file
           gh copilot suggest --message-file ai/prompts/daily_objectives.md --apply || true
 
       - name: Run tests on refactored code
