@@ -26,7 +26,7 @@ jobs:
       - name: Install GitHub Copilot CLI
         run: gh extension install github/copilot-cli
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT_DC }}
 
       # Add your AI refactor step here, for example:
       - name: Run AI Refactor
@@ -41,4 +41,4 @@ jobs:
           git diff --cached --quiet || git commit -m "Automated AI refactor"
           git push
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT_DC }}
