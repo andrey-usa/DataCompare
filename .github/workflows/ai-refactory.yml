@@ -1,4 +1,6 @@
 name: Daily AI Refactor
+permissions:
+  contents: read
 
 on:
   schedule:
