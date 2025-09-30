@@ -8,4 +8,4 @@ pytest
 pytest-benchmark
 ruff
 black
-aider
+aider-chat  # AI coding assistant from https://aider.chat (PyPI package: aider-chat)
