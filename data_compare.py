@@ -94,7 +94,7 @@ def cli_mode():
         start_time = time.time()
 
         print("Loading files...")
-        df1, df2 = read_files_in_parallel(args.file1, args.file2)
+        df1, df2 = read_files_in_parallel_lazy(args.file1, args.file2)
         load_time = time.time() - start_time
         print(f"Files loaded in {load_time:.2f} seconds.")
 
