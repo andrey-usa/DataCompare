@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -23,17 +25,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Install Copilot CLI extension
-        run: gh extension install github/copilot-cli
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT_DC }}
-
-      # Add your AI refactor step here, for example:
-      - name: Run AI Refactor
-        run: python ai_refactor.py
+      # Note: Add your AI refactor step here when ready
+      # For now, this workflow is configured but not executing any refactor steps
+      # - name: Run AI Refactor
+      #   run: python ai_refactor.py
 
       # Optional: Commit changes if any
       - name: Commit and push changes
+        if: false  # Disabled until refactor script is ready
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
@@ -41,4 +40,4 @@ jobs:
           git diff --cached --quiet || git commit -m "Automated AI refactor"
           git push
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT_DC }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
