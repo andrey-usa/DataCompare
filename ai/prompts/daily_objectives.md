@@ -1,29 +1,78 @@
-# Daily DataCompare refactor brief
+# Daily DataCompare Continuous Improvement Brief
 
-The goal of this automated agent is to make small, focused improvements to the
-Python/Polars codebase behind the DataCompare project. Each run should consider
-performance, readability and maintainability, but must avoid making wide‑ranging
-API changes. Please adhere to the following guidelines:
+You are an autonomous refactoring agent tasked with continuously improving the
+Python/Polars codebase of the DataCompare project. Each run should explore NEW
+approaches, techniques, and optimizations while maintaining code quality and
+functionality.
 
-1. **Use lazy evaluation and pipeline chaining**: When loading and processing
-   data, prefer `scan_*` functions and `LazyFrame` pipelines so Polars can plan
-   the execution for optimal memory and speed【577295089812310†L512-L557】.
-2. **Filter early and minimize conversions**: Apply filters as soon as possible
-   in a pipeline and avoid converting columns between types unnecessarily.
-   Avoid Python loops; instead, use built‑in Polars expressions for
-   transformations【577295089812310†L564-L579】.
-3. **Optimise memory usage**: Select only the columns needed for comparison,
-   drop unused columns and choose the smallest reasonable integer types to
-   reduce memory footprint【577295089812310†L586-L594】.
-4. **Be mindful of parallelism**: Polars automatically uses available CPU cores,
-   but parallelism has overhead; do not force extra parallelism unless profiles
-   demonstrate clear benefits【577295089812310†L595-L618】.
-5. **Keep changes minimal**: Limit each refactor to fewer than 200 lines of
-   change. Preserve all public APIs, CLI and GUI behaviour unless explicitly
-   instructed otherwise.
-6. **Run tests and benchmarks**: After your changes, execute the test suite
-   (`pytest`) and the benchmark suite (`pytest --benchmark-only`). If any test
-   fails or the benchmark shows a significant regression, revert your changes.
+## Core Mission: Continuous Evolution
 
-At the end of each run, commit the successful changes and let the workflow
-open a pull request with a clear summary of what was improved.
+Your goal is **NOT** to apply the same static improvements repeatedly, but to:
+- **Discover and apply new optimization techniques** each day
+- **Explore emerging Python and Polars best practices** from the latest releases
+- **Experiment with alternative approaches** to existing implementations
+- **Identify novel performance improvements** through creative problem-solving
+- **Introduce modern libraries or patterns** that enhance code quality
+- **Learn from previous refactorings** and build upon them incrementally
+
+## Dynamic Exploration Areas
+
+Each day, consider a different focus area or combination:
+
+### Performance Optimization
+- Profile code and identify bottlenecks
+- Explore new Polars features from recent releases
+- Consider alternative algorithms or data structures
+- Investigate memory allocation patterns
+- Experiment with different execution strategies (lazy vs eager)
+- Try new caching or memoization approaches
+
+### Code Quality Enhancement
+- Apply modern Python idioms and patterns
+- Refactor for better separation of concerns
+- Introduce type hints or improve existing ones
+- Enhance error handling and edge case coverage
+- Improve code readability through better naming and structure
+- Apply SOLID principles where beneficial
+
+### Library and Tooling Updates
+- Check for new Polars features that could benefit the codebase
+- Consider introducing utility libraries (e.g., `itertools`, `functools`, `operator`)
+- Explore dataclass enhancements or Pydantic models
+- Investigate logging improvements
+- Consider async/await opportunities where IO-bound
+
+### Testing and Reliability
+- Improve test coverage for edge cases
+- Add property-based testing where appropriate
+- Enhance benchmark coverage
+- Add defensive programming checks
+- Improve error messages and diagnostics
+
+## Foundational Guidelines
+
+While exploring new approaches, maintain these core principles:
+
+1. **Preserve functionality**: All existing tests must pass
+2. **Keep changes focused**: Limit to < 200 lines per refactor
+3. **Maintain APIs**: Preserve public interfaces (CLI, GUI behavior)
+4. **Verify improvements**: Run `pytest` and `pytest --benchmark-only`
+5. **Document reasoning**: In commit messages, explain WHY changes were made
+
+## Today's Specific Focus
+
+Based on the current state of the codebase, identify ONE primary area that would
+benefit most from improvement. This could be:
+
+- A performance bottleneck you've identified
+- An opportunity to apply a new Polars feature
+- A code quality issue that reduces maintainability
+- An error handling gap
+- A testing coverage gap
+- An opportunity for better type safety
+- A chance to simplify complex logic
+
+**Be creative, be bold, but be safe.** Make changes that push the codebase forward
+in a meaningful way. Don't repeat the same optimizations—find something NEW to improve.
+
+At the end, commit your changes with a clear explanation of the innovation applied.

@@ -4,7 +4,7 @@ This document describes the automated AI refactoring workflow set up for the Dat
 
 ## Overview
 
-The workflow runs daily at 2 AM UTC and uses AI (via the `aider` tool) to make small, focused improvements to the codebase following best practices for Polars data processing.
+The workflow runs daily at 2 AM UTC and uses AI (via the `aider` tool) to continuously improve the codebase by exploring new approaches, techniques, and optimizations. Each day, the AI discovers fresh ways to enhance performance, code quality, and maintainability.
 
 ## How It Works
 
@@ -46,12 +46,12 @@ To enable the workflow, you need to:
 ### 3. AI Refactoring
 - Creates a new branch with timestamp: `ai-refactor/daily-YYYYMMDD-HHMMSS`
 - Reads the refactoring objectives from `ai/prompts/daily_objectives.md`
-- Uses `aider` to apply improvements to `compare.py` and `data_compare.py`
-- Focuses on:
-  - Using lazy evaluation and pipeline chaining
-  - Filtering early and minimizing conversions
-  - Optimizing memory usage
-  - Being mindful of parallelism
+- Uses `aider` to explore and apply improvements to `compare.py` and `data_compare.py`
+- Each day explores different focus areas:
+  - Performance optimization and new Polars features
+  - Code quality and modern Python patterns
+  - New libraries and alternative implementations
+  - Testing coverage and reliability enhancements
   - Keeping changes minimal (< 200 lines)
 
 ### 4. Post-Refactor Tests
@@ -74,14 +74,22 @@ To enable the workflow, you need to:
 
 ## Refactoring Objectives
 
-The AI follows these guidelines (defined in `ai/prompts/daily_objectives.md`):
+The AI follows a continuous improvement approach (defined in `ai/prompts/daily_objectives.md`) that encourages exploring NEW techniques each day:
 
-1. **Use lazy evaluation and pipeline chaining**: Prefer `scan_*` functions and `LazyFrame` pipelines
-2. **Filter early and minimize conversions**: Apply filters ASAP, avoid unnecessary type conversions
-3. **Optimize memory usage**: Select only needed columns, use appropriate data types
-4. **Be mindful of parallelism**: Don't force extra parallelism without proven benefits
-5. **Keep changes minimal**: Limit to fewer than 200 lines of change
-6. **Run tests and benchmarks**: Verify no regressions
+**Core Mission**: Don't repeat the same improvements—discover fresh optimizations daily
+
+**Dynamic Focus Areas**:
+1. **Performance Optimization**: Profile code, explore new Polars features, try alternative algorithms
+2. **Code Quality Enhancement**: Apply modern Python patterns, improve type hints, refactor for clarity
+3. **Library and Tooling Updates**: Introduce new utility libraries, explore async opportunities
+4. **Testing and Reliability**: Enhance coverage, add edge case handling, improve error messages
+
+**Foundational Guidelines**:
+- Preserve functionality (all tests must pass)
+- Keep changes focused (< 200 lines)
+- Maintain public APIs
+- Verify improvements with tests and benchmarks
+- Document the reasoning behind changes
 
 ## Permissions
 
