@@ -115,13 +115,14 @@ Value (unpivoted) Mismatches: 1706
 
 ## Development
 
-### AI-Powered Daily Refactoring
+### AI-Powered Continuous Improvement
 
-This project includes an automated AI refactoring workflow that runs daily to improve code quality and performance. See [AI_WORKFLOW.md](AI_WORKFLOW.md) for details on how the workflow operates and how to configure it.
+This project includes an automated AI refactoring workflow that runs daily to continuously improve code quality and performance by exploring new approaches and techniques. See [AI_WORKFLOW.md](AI_WORKFLOW.md) for details on how the workflow operates and how to configure it.
 
 Key features:
 - Runs daily at 2 AM UTC
-- Uses AI (aider) to apply Polars best practices
+- Uses AI (aider) to discover and apply new optimizations each day
+- Explores modern Python/Polars patterns, new libraries, and fresh techniques
 - Creates PRs only when tests pass
 - Follows strict guidelines to keep changes minimal
 
