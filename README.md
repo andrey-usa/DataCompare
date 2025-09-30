@@ -112,3 +112,18 @@ Duplicate keys in sales_q1: 0
 Duplicate keys in sales_q2: 14
 Value (unpivoted) Mismatches: 1706
 ```
+
+## Development
+
+### AI-Powered Daily Refactoring
+
+This project includes an automated AI refactoring workflow that runs daily to improve code quality and performance. See [AI_WORKFLOW.md](AI_WORKFLOW.md) for details on how the workflow operates and how to configure it.
+
+Key features:
+- Runs daily at 2 AM UTC
+- Uses AI (aider) to apply Polars best practices
+- Creates PRs only when tests pass
+- Follows strict guidelines to keep changes minimal
+
+To enable: Add `OPENAI_API_KEY` to repository secrets.
+

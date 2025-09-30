@@ -1,11 +1,13 @@
+---
 name: Daily AI Refactor
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
-on:
+"on":
   schedule:
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+    - cron: '0 2 * * *'  # Run at 2 AM UTC daily
+  workflow_dispatch: {}  # Allow manual trigger
 
 jobs:
   ai-refactor:
@@ -26,20 +28,92 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-      # Note: Add your AI refactor step here when ready
-      # For now, this workflow is configured but not executing any refactor steps
-      # - name: Run AI Refactor
-      #   run: python ai_refactor.py
+      - name: Run tests before refactoring
+        id: test_before
+        run: |
+          pytest -v
+          echo "Tests passed before refactoring"
 
-      # Optional: Commit changes if any
+      - name: Run AI Refactor with aider
+        id: ai_refactor
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Create a new branch for the refactor
+          BRANCH_NAME="ai-refactor/daily-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+          # Use aider to refactor code based on daily objectives
+          # Read the objectives and apply them to the codebase
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "Running aider with daily objectives..."
+            aider --yes --message "$(cat ai/prompts/daily_objectives.md)" \
+              compare.py data_compare.py || \
+              echo "Aider completed with warnings"
+          else
+            echo "Warning: OPENAI_API_KEY not set."
+            echo "Skipping AI refactoring."
+            echo "skipped=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run tests after refactoring
+        id: test_after
+        if: steps.ai_refactor.outputs.skipped != 'true'
+        run: |
+          pytest -v
+          echo "Tests passed after refactoring"
+
+      - name: Check for changes
+        id: check_changes
+        if: steps.ai_refactor.outputs.skipped != 'true'
+        run: |
+          if git diff --quiet; then
+            echo "No changes made by AI refactor"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Commit and push changes
-        if: false  # Disabled until refactor script is ready
+        if: |
+          steps.check_changes.outputs.has_changes == 'true' &&
+          steps.test_after.conclusion == 'success'
         run: |
           git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git config --global user.email \
+            'github-actions[bot]@users.noreply.github.com'
           git add .
-          git diff --cached --quiet || git commit -m "Automated AI refactor"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git commit -m "Automated AI refactor - $(date +%Y-%m-%d)"
+          git push origin "${{ steps.ai_refactor.outputs.BRANCH_NAME }}"
+
+      - name: Create Pull Request
+        if: |
+          steps.check_changes.outputs.has_changes == 'true' &&
+          steps.test_after.conclusion == 'success'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.ai_refactor.outputs.BRANCH_NAME }}
+          title: "🤖 Daily AI Refactor - $(date +%Y-%m-%d)"
+          body: |
+            ## Automated AI Refactoring
+
+            This PR contains automated code improvements generated
+            by the daily AI refactor workflow.
+
+            ### Objectives Applied
+            - Use lazy evaluation and pipeline chaining
+            - Filter early and minimize conversions
+            - Optimize memory usage
+            - Be mindful of parallelism
+            - Keep changes minimal
+
+            ### Test Status
+            ✅ All tests passed before and after refactoring
+
+            Please review the changes carefully before merging.
+          labels: ai-refactor,automated
