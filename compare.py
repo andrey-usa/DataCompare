@@ -153,8 +153,8 @@ def get_file_header(path: str) -> list[str]:
         print(f"Could not read header from {os.path.basename(path)}: {e}", file=sys.stderr)
         return []
 
-def read_file(path: str) -> pl.DataFrame:
-    """Reads a single file (Excel or CSV) into a Polars DataFrame."""
+def read_file(path: str) -> pl.LazyFrame:
+    """Reads a single file (Excel or CSV) into a Polars LazyFrame."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
 
@@ -162,9 +162,9 @@ def read_file(path: str) -> pl.DataFrame:
 
     try:
         if file_ext.endswith('.csv'):
-            return pl.read_csv(path)
+            return pl.scan_csv(path)
         elif file_ext.endswith(('.xlsx', '.xls')):
-            return pl.read_excel(path, engine='calamine')
+            return pl.scan_excel(path, engine='calamine')
         else:
             raise ValueError(f"Unsupported file format: {path}. Supported formats: .csv, .xlsx, .xls")
     except Exception as e:
@@ -175,7 +175,7 @@ def _read_file_with_progress(args):
     path, file_num = args
     print(f"  Starting to read file {file_num}: {os.path.basename(path)}")
     start_time = datetime.now()
-    df = read_file(path)
+    df = read_file(path).collect()
     elapsed = (datetime.now() - start_time).total_seconds()
     print(f"  Completed file {file_num} in {elapsed:.2f} seconds ({len(df)} rows)")
     return df
