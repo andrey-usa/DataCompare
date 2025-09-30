@@ -1,5 +1,6 @@
 import argparse
 from compare import (
+    read_files_in_parallel_lazy,
     read_files_in_parallel,
     compare_dataframes,
     get_filename_without_extension,
@@ -392,7 +393,7 @@ class DataCompareApp(TkinterDnD.Tk):
             results = compare_dataframes(df1, df2, key_cols, file1_name, file2_name, mapping_file)
             self.after(0, self._update_gui_with_results, results)
         except Exception as e:
-            self.after(0, lambda: messagebox.showerror('Error', str(e)))
+            self.after(0, lambda e=e: messagebox.showerror('Error', str(e)))
             self.after(0, lambda: self.status_var.set("Error occurred"))
         finally:
             self.after(0, lambda: self.compare_button.config(state='normal'))

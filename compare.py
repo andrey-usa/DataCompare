@@ -175,7 +175,7 @@ def _read_file_with_progress(args):
     path, file_num = args
     print(f"  Starting to read file {file_num}: {os.path.basename(path)}")
     start_time = datetime.now()
-    df = read_file(path)
+    df = read_file_lazy(path)
     elapsed = (datetime.now() - start_time).total_seconds()
     print(f"  Completed file {file_num} in {elapsed:.2f} seconds ({len(df)} rows)")
     return df
