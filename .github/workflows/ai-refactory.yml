@@ -28,10 +28,9 @@ jobs:
         run: pytest --benchmark-only -q
 
       - name: Install GitHub Copilot CLI
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Use the preinstalled GitHub CLI to install the Copilot CLI extension
+          sudo apt-get update -y
+          sudo apt-get install -y gh
           gh extension install github/copilot-cli
 
       - name: Run GitHub Copilot refactoring
@@ -53,7 +52,7 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           branch: auto/refactor-${{ github.run_id }}
-          commit-message: "Automated daily refactor"
+          commit-message: "chore: automated daily refactor"
           title: "Automated daily refactor"
           body: |
             This pull request contains small refactoring changes applied by GitHub Copilot according to the prompt in `ai/prompts/daily_objectives.md`.
