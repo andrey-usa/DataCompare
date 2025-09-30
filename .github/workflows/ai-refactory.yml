@@ -23,7 +23,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Install GitHub Copilot CLI
+      - name: Install Copilot CLI extension
         run: gh extension install github/copilot-cli
         env:
           GH_TOKEN: ${{ secrets.GH_PAT_DC }}
