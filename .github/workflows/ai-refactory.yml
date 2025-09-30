@@ -8,6 +8,9 @@ on:
 jobs:
   ai-refactor:
     runs-on: ubuntu-latest
+    # Set GH_TOKEN globally so GitHub CLI can authenticate throughout the job
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -34,8 +37,6 @@ jobs:
           gh extension install github/copilot-cli
 
       - name: Run GitHub Copilot refactoring
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
         run: |
           # Use Copilot CLI to apply suggestions from the prompt file
