@@ -269,12 +269,12 @@ def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list
     file2_cols_renamed = [f"{file2_prefix}{col}" for col in non_key_cols]
 
     id_vars = ["Identifier"] + keys
-    file1_melted = mismatched_data.select(id_vars + file1_cols_renamed).melt(
-        id_vars=id_vars, variable_name="Column_Name", value_name="File1_Value"
+    file1_melted = mismatched_data.select(id_vars + file1_cols_renamed).unpivot(
+        index=id_vars, variable_name="Column_Name", value_name="File1_Value"
     )
 
-    file2_melted = mismatched_data.select(id_vars + file2_cols_renamed).melt(
-        id_vars=id_vars, variable_name="Column_Name", value_name="File2_Value"
+    file2_melted = mismatched_data.select(id_vars + file2_cols_renamed).unpivot(
+        index=id_vars, variable_name="Column_Name", value_name="File2_Value"
     )
 
     # Clean up column names in melted data by removing file prefixes for matching
