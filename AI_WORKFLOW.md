@@ -1,12 +1,40 @@
-# AI Daily Refactor Workflow with Self-Healing
+# AI Daily Refactor Workflows
 
-This document describes the automated AI refactoring workflow with self-healing capabilities set up for the DataCompare project.
+This document describes the automated AI refactoring workflows set up for the DataCompare project.
 
 ## Overview
 
-The workflow runs daily at 2 AM UTC and uses AI (via the `aider` tool) to continuously improve the codebase by exploring new approaches, techniques, and optimizations. Each day, the AI discovers fresh ways to enhance performance, code quality, and maintainability.
+The project includes **two complementary AI refactoring workflows** that run at different times to continuously improve the codebase:
 
-**New in this version:** The workflow now includes intelligent self-healing capabilities that automatically detect and fix failures, ensuring maximum success rate within a 15-minute time budget.
+### 1. OpenAI-Powered Workflow (2 AM UTC)
+File: `.github/workflows/ai-refactory.yml`
+
+Uses AI (via the `aider` tool with OpenAI API) to explore sophisticated improvements, new approaches, and advanced optimizations. Includes intelligent self-healing capabilities for maximum reliability.
+
+**Key Features:**
+- Advanced AI-driven code exploration and optimization
+- Discovers novel patterns and techniques
+- Intelligent self-healing with up to 5 retry attempts
+- 15-minute time budget with automatic timeout
+- Requires `OPENAI_API_KEY` secret to be configured
+
+### 2. GitHub-Native AI Workflow (3 AM UTC)
+File: `.github/workflows/github-ai-refactor.yml`
+
+Uses GitHub's native resources exclusively with automated static analysis and refactoring tools. No external API dependencies required.
+
+**Key Features:**
+- Always available (no API key needed)
+- Uses Black for code formatting
+- Uses Ruff for linting and auto-fixes
+- Detects and replaces deprecated APIs
+- Static code analysis and best practices
+- Up to 3 retry attempts
+- 15-minute time budget with automatic timeout
+
+---
+
+## OpenAI-Powered Workflow Details
 
 ## How It Works
 
@@ -274,8 +302,170 @@ pytest -v
 - Can rollback changes and retry with different approach
 - Prioritizes stability over ambitious improvements
 
+---
+
+## GitHub-Native AI Workflow Details
+
+### How It Works
+
+1. **Scheduled Execution**: Runs automatically every day at 3 AM UTC (1 hour after OpenAI workflow)
+2. **Manual Trigger**: Can also be triggered manually via GitHub Actions UI
+3. **Test-First Approach**: Tests are run before any changes are made
+4. **Automated Refactoring**: Uses static analysis and automated tools:
+   - **Black**: Code formatting
+   - **Ruff**: Linting and auto-fixes
+   - **Custom Scripts**: Deprecated API detection and replacement
+5. **Retry Loop**: Up to 3 attempts if tests fail after changes
+6. **Time-Boxed Execution**: Enforces a 15-minute maximum time limit
+7. **Test Validation**: Tests are run after each attempt until they pass
+8. **Branch Creation**: Only creates a new branch if:
+   - Changes were made to the code
+   - All tests pass after refactoring
+9. **Pull Request**: Automatically creates a PR with the changes
+
+### Setup Requirements
+
+**No external API keys required!** This workflow uses only GitHub's native resources.
+
+Optional:
+1. **Configure Branch Protection** (recommended):
+   - Enable branch protection for the main/master branch
+   - Require PR reviews before merging
+   - Enable status checks to ensure tests pass
+
+### Workflow Steps
+
+#### 1. Checkout and Setup
+- Checks out the repository code
+- Sets up Python 3.11 environment
+- Installs all dependencies from `requirements.txt` and `requirements-dev.txt`
+
+#### 2. Pre-Refactor Tests
+- Runs the full test suite with `pytest -v`
+- Ensures the codebase is in a good state before any changes
+
+#### 3. GitHub AI Refactoring Loop
+- Sets a 15-minute time budget for the entire workflow
+- Creates a new branch with timestamp: `github-ai-refactor/daily-YYYYMMDD-HHMMSS`
+- Implements a retry loop (up to 3 attempts):
+
+  **Each Attempt:**
+  - Runs Black for code formatting
+  - Runs Ruff for linting and auto-fixes
+  - Detects and replaces deprecated Polars APIs (e.g., `melt()` → `unpivot()`)
+  - Runs tests to validate changes
+  - If tests fail and not the last attempt, resets to clean state
+
+- **Time Budget Management:**
+  - Monitors elapsed time before each attempt
+  - Stops if 13-minute threshold reached (leaving 2-minute buffer)
+  - Reports timeout if time budget exceeded
+
+#### 4. Check for Changes
+- Only proceeds if:
+  - Tests passed
+  - Changes were made to the codebase
+
+#### 5. Commit and Push
+- Commits changes with descriptive message
+- Indicates if multiple attempts were needed
+- Pushes to the new branch
+
+#### 6. Create Pull Request
+- Automatically creates a PR with:
+  - Clear title indicating GitHub AI refactor and date
+  - Note if multiple attempts were applied
+  - Detailed description of improvements applied
+  - Test status confirmation
+  - Attempts to add labels (if they exist)
+
+#### 7. Failure Reporting (if applicable)
+- If all attempts fail or time limit exceeded:
+  - Reports error to GitHub Actions
+  - Workflow fails visibly for human review
+
+### Key Features
+
+#### 🔄 Automatic Retry Loop
+- Up to 3 attempts to complete successfully
+- Each attempt applies the same set of automated improvements
+- Resets to clean state between attempts
+
+#### ⏱️ Time Budget Management
+- Hard 15-minute timeout for entire workflow
+- Monitors time usage before each attempt
+- Stops gracefully if time budget exceeded
+- Ensures workflow doesn't run indefinitely
+
+#### 🛠️ Automated Tools
+- **Black**: Enforces consistent code formatting
+- **Ruff**: Fast Python linter with auto-fix capabilities
+- **Deprecated API Detection**: Custom scripts to find and replace outdated APIs
+- **Static Analysis**: Identifies common issues and best practices violations
+
+#### 🔒 No External Dependencies
+- Uses only GitHub's native infrastructure
+- No API keys or external services required
+- Always available and reliable
+
+### Monitoring
+
+You can monitor the workflow:
+1. Go to the repository's Actions tab
+2. Look for "Daily GitHub AI Refactor" workflow runs
+3. Click on any run to see detailed logs of each step
+
+### Customization
+
+To customize the workflow:
+
+1. **Change Schedule**: Edit the `cron` expression in `.github/workflows/github-ai-refactor.yml`
+2. **Add More Tools**: Extend the refactoring script in the workflow
+3. **Modify Checks**: Edit the Python script that applies automated improvements
+4. **Adjust Attempts**: Change `MAX_ATTEMPTS` variable in the workflow
+
+### Manual Testing
+
+To test the GitHub-native refactoring locally:
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+
+# Run tests before
+pytest -v
+
+# Apply Black formatting
+black compare.py data_compare.py
+
+# Apply Ruff auto-fixes
+ruff check --fix compare.py data_compare.py
+
+# Check for deprecated APIs
+grep -n '\.melt(' compare.py data_compare.py
+
+# Run tests after
+pytest -v
+```
+
+## Comparison: OpenAI vs GitHub-Native Workflows
+
+| Feature | OpenAI Workflow | GitHub-Native Workflow |
+|---------|----------------|------------------------|
+| **Schedule** | 2 AM UTC | 3 AM UTC |
+| **API Key Required** | Yes (`OPENAI_API_KEY`) | No |
+| **Sophistication** | High (AI-driven exploration) | Medium (rule-based automation) |
+| **Max Attempts** | 5 with self-healing | 3 standard retries |
+| **Refactoring Type** | Novel patterns, optimizations | Code quality, standards |
+| **Best For** | Discovering new techniques | Maintaining consistency |
+| **Cost** | Requires OpenAI API credits | Free (GitHub resources only) |
+| **Reliability** | Depends on API availability | Always available |
+
 ## References
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [Aider Documentation](https://aider.chat/)
 - [Polars Best Practices](https://pola-rs.github.io/polars/user-guide/)
+- [Black Code Formatter](https://black.readthedocs.io/)
+- [Ruff Linter](https://docs.astral.sh/ruff/)

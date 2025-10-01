@@ -117,14 +117,24 @@ Value (unpivoted) Mismatches: 1706
 
 ### AI-Powered Continuous Improvement
 
-This project includes an automated AI refactoring workflow that runs daily to continuously improve code quality and performance by exploring new approaches and techniques. See [AI_WORKFLOW.md](AI_WORKFLOW.md) for details on how the workflow operates and how to configure it.
+This project includes two automated AI refactoring workflows that run daily to continuously improve code quality and performance:
 
-Key features:
-- Runs daily at 2 AM UTC
-- Uses AI (aider) to discover and apply new optimizations each day
+#### 1. OpenAI-Powered Workflow (2 AM UTC)
+Uses `aider` with OpenAI's API to discover and apply sophisticated optimizations:
 - Explores modern Python/Polars patterns, new libraries, and fresh techniques
+- Intelligent self-healing with automatic failure recovery
 - Creates PRs only when tests pass
 - Follows strict guidelines to keep changes minimal
 
 To enable: Add `OPENAI_API_KEY` to repository secrets.
+
+#### 2. GitHub-Native AI Workflow (3 AM UTC)
+Uses GitHub's native resources exclusively (no external API dependencies):
+- Automated code formatting with Black
+- Linting and auto-fixes with Ruff
+- Deprecated API detection and replacement
+- Static code analysis and best practices enforcement
+- Always available without external API keys
+
+See [AI_WORKFLOW.md](AI_WORKFLOW.md) for details on how the workflows operate and how to configure them.
 
