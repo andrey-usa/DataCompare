@@ -153,8 +153,8 @@ def get_file_header(path: str) -> list[str]:
         print(f"Could not read header from {os.path.basename(path)}: {e}", file=sys.stderr)
         return []
 
-def read_file(path: str) -> pl.DataFrame:
-    """Reads a single file (Excel or CSV) into a Polars DataFrame."""
+def read_file(path: str) -> pl.LazyFrame:
+    """Reads a single file (Excel or CSV) into a Polars LazyFrame."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
 
@@ -162,9 +162,9 @@ def read_file(path: str) -> pl.DataFrame:
 
     try:
         if file_ext.endswith('.csv'):
-            return pl.read_csv(path)
+            return pl.scan_csv(path)
         elif file_ext.endswith(('.xlsx', '.xls')):
-            return pl.read_excel(path, engine='calamine')
+            return pl.scan_excel(path, engine='calamine')
         else:
             raise ValueError(f"Unsupported file format: {path}. Supported formats: .csv, .xlsx, .xls")
     except Exception as e:
@@ -200,10 +200,10 @@ def create_output_folder() -> str:
     os.makedirs(folder_name, exist_ok=True)
     return folder_name
 
-def find_missing_rows(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str]) -> tuple:
-    """Finds rows that are in one dataframe but not the other."""
-    missing_in_df2 = df1.join(df2, on=keys, how='anti')
-    missing_in_df1 = df2.join(df1, on=keys, how='anti')
+def find_missing_rows(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str]) -> tuple:
+    """Finds rows that are in one dataframe but not the other using LazyFrames."""
+    missing_in_df2 = df1.join(df2, on=keys, how='anti').collect()
+    missing_in_df1 = df2.join(df1, on=keys, how='anti').collect()
     return missing_in_df2, missing_in_df1
 
 def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.DataFrame:
@@ -223,7 +223,7 @@ def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.D
         .sort(key_columns)
     )
 
-def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2") -> tuple[pl.DataFrame, pl.DataFrame]:
+def find_mismatches_and_unpivot(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2") -> tuple[pl.DataFrame, pl.DataFrame]:
     """
     Finds rows with the same keys but different values, and creates a detailed unpivoted report.
     This is done in one pass to avoid multiple joins.
