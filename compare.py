@@ -200,13 +200,13 @@ def create_output_folder() -> str:
     os.makedirs(folder_name, exist_ok=True)
     return folder_name
 
-def find_missing_rows(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str]) -> tuple:
+def find_missing_rows(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str]) -> tuple:
     """Finds rows that are in one dataframe but not the other."""
-    missing_in_df2 = df1.join(df2, on=keys, how='anti')
-    missing_in_df1 = df2.join(df1, on=keys, how='anti')
+    missing_in_df2 = df1.join(df2, on=keys, how='anti').collect()
+    missing_in_df1 = df2.join(df1, on=keys, how='anti').collect()
     return missing_in_df2, missing_in_df1
 
-def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.DataFrame:
+def find_duplicates(df: pl.LazyFrame, key_columns: list, file_name: str) -> pl.DataFrame:
     """Finds duplicate rows based on key columns."""
     return (
         df
@@ -221,9 +221,10 @@ def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.D
         .with_columns(pl.lit(file_name).alias("source_file"))
         .drop(["_row_idx", "_combined_key", "_key_count"])
         .sort(key_columns)
+        .collect()
     )
 
-def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2") -> tuple[pl.DataFrame, pl.DataFrame]:
+def find_mismatches_and_unpivot(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2") -> tuple[pl.DataFrame, pl.DataFrame]:
     """
     Finds rows with the same keys but different values, and creates a detailed unpivoted report.
     This is done in one pass to avoid multiple joins.
@@ -243,7 +244,7 @@ def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list
         if col_file2 in joined.columns:
             mismatch_mask = mismatch_mask | (pl.col(col).ne_missing(pl.col(col_file2)))
 
-    mismatched_rows = joined.filter(mismatch_mask)
+    mismatched_rows = joined.filter(mismatch_mask).collect()
 
     if len(mismatched_rows) == 0:
         return pl.DataFrame(), pl.DataFrame()
@@ -294,11 +295,11 @@ def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list
             (pl.col("File1_Value").cast(pl.Utf8) + " vs " + pl.col("File2_Value").cast(pl.Utf8)).alias("Comparison")
         ])
         .sort(["Identifier", "Column_Name"])
-    )
+    ).collect()
 
     return renamed_mismatches, unpivoted_mismatches
 
-def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2", mapping_file: Optional[str] = None) -> tuple:
+def compare_dataframes(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2", mapping_file: Optional[str] = None) -> tuple:
     """
     Compares two Polars DataFrames and returns a comprehensive analysis including missing rows,
     mismatches, duplicates, and an unpivoted mismatch report.
@@ -323,8 +324,8 @@ def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], fi
         print(f"Mapping summary:\n{column_mapper.get_mapping_summary()}")
         sys.stdout.flush()
 
-    df1_shape = df1.shape
-    df2_shape = df2.shape
+    df1_shape = df1.collect().shape
+    df2_shape = df2.collect().shape
 
     for key in keys:
         if key not in df1.columns:
@@ -333,10 +334,10 @@ def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], fi
             raise ValueError(f"Key column '{key}' not found in second dataframe.")
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_missing = executor.submit(find_missing_rows, df1, df2, keys)
-        future_duplicates1 = executor.submit(find_duplicates, df1, keys, file1_name)
-        future_duplicates2 = executor.submit(find_duplicates, df2, keys, file2_name)
-        future_mismatches = executor.submit(find_mismatches_and_unpivot, df1, df2, keys, file1_name, file2_name)
+        future_missing = executor.submit(find_missing_rows, df1.lazy(), df2.lazy(), keys)
+        future_duplicates1 = executor.submit(find_duplicates, df1.lazy(), keys, file1_name)
+        future_duplicates2 = executor.submit(find_duplicates, df2.lazy(), keys, file2_name)
+        future_mismatches = executor.submit(find_mismatches_and_unpivot, df1.lazy(), df2.lazy(), keys, file1_name, file2_name)
 
         missing_in_file2, missing_in_file1 = future_missing.result()
         duplicates_file1 = future_duplicates1.result()
