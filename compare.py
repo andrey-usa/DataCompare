@@ -201,9 +201,9 @@ def create_output_folder() -> str:
     return folder_name
 
 def find_missing_rows(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str]) -> tuple:
-    """Finds rows that are in one dataframe but not the other."""
-    missing_in_df2 = df1.join(df2, on=keys, how='anti')
-    missing_in_df1 = df2.join(df1, on=keys, how='anti')
+    """Finds rows that are in one dataframe but not the other using lazy execution."""
+    missing_in_df2 = df1.lazy().join(df2.lazy(), on=keys, how='anti').collect()
+    missing_in_df1 = df2.lazy().join(df1.lazy(), on=keys, how='anti').collect()
     return missing_in_df2, missing_in_df1
 
 def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.DataFrame:
@@ -225,12 +225,12 @@ def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.D
 
 def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2") -> tuple[pl.DataFrame, pl.DataFrame]:
     """
-    Finds rows with the same keys but different values, and creates a detailed unpivoted report.
+    Finds rows with the same keys but different values, and creates a detailed unpivoted report using lazy execution.
     This is done in one pass to avoid multiple joins.
     """
     # Use dynamic suffix based on file2 name
     file2_suffix = f"_{file2_name}"
-    joined = df1.join(df2, on=keys, how='inner', suffix=file2_suffix)
+    joined = df1.lazy().join(df2.lazy(), on=keys, how='inner', suffix=file2_suffix)
     non_key_cols = [col for col in df1.columns if col not in keys]
 
     if not non_key_cols:
@@ -243,7 +243,7 @@ def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list
         if col_file2 in joined.columns:
             mismatch_mask = mismatch_mask | (pl.col(col).ne_missing(pl.col(col_file2)))
 
-    mismatched_rows = joined.filter(mismatch_mask)
+    mismatched_rows = joined.filter(mismatch_mask).collect()
 
     if len(mismatched_rows) == 0:
         return pl.DataFrame(), pl.DataFrame()
