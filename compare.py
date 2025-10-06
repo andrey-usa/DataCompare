@@ -153,8 +153,8 @@ def get_file_header(path: str) -> list[str]:
         print(f"Could not read header from {os.path.basename(path)}: {e}", file=sys.stderr)
         return []
 
-def read_file(path: str) -> pl.DataFrame:
-    """Reads a single file (Excel or CSV) into a Polars DataFrame."""
+def read_file(path: str) -> pl.LazyFrame:
+    """Reads a single file (Excel or CSV) into a Polars LazyFrame."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
 
@@ -162,9 +162,9 @@ def read_file(path: str) -> pl.DataFrame:
 
     try:
         if file_ext.endswith('.csv'):
-            return pl.read_csv(path)
+            return pl.scan_csv(path)
         elif file_ext.endswith(('.xlsx', '.xls')):
-            return pl.read_excel(path, engine='calamine')
+            return pl.scan_excel(path, engine='calamine')
         else:
             raise ValueError(f"Unsupported file format: {path}. Supported formats: .csv, .xlsx, .xls")
     except Exception as e:
@@ -206,11 +206,11 @@ def find_missing_rows(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str]) -> 
     missing_in_df1 = df2.join(df1, on=keys, how='anti')
     return missing_in_df2, missing_in_df1
 
-def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.DataFrame:
+def find_duplicates(df: pl.LazyFrame, key_columns: list, file_name: str) -> pl.LazyFrame:
     """Finds duplicate rows based on key columns."""
     return (
         df
-        .with_row_index("_row_idx")
+        .with_row_count("_row_idx")
         .with_columns([
             pl.concat_str([pl.col(k).cast(pl.Utf8) for k in key_columns], separator="|").alias("_combined_key")
         ])
