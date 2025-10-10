@@ -200,13 +200,13 @@ def create_output_folder() -> str:
     os.makedirs(folder_name, exist_ok=True)
     return folder_name
 
-def find_missing_rows(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str]) -> tuple:
+def find_missing_rows(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str]) -> tuple:
     """Finds rows that are in one dataframe but not the other."""
-    missing_in_df2 = df1.join(df2, on=keys, how='anti')
-    missing_in_df1 = df2.join(df1, on=keys, how='anti')
+    missing_in_df2 = df1.join(df2, on=keys, how='anti').collect()
+    missing_in_df1 = df2.join(df1, on=keys, how='anti').collect()
     return missing_in_df2, missing_in_df1
 
-def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.DataFrame:
+def find_duplicates(df: pl.LazyFrame, key_columns: list, file_name: str) -> pl.DataFrame:
     """Finds duplicate rows based on key columns."""
     return (
         df
@@ -221,9 +221,10 @@ def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.D
         .with_columns(pl.lit(file_name).alias("source_file"))
         .drop(["_row_idx", "_combined_key", "_key_count"])
         .sort(key_columns)
+        .collect()
     )
 
-def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2") -> tuple[pl.DataFrame, pl.DataFrame]:
+def find_mismatches_and_unpivot(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2") -> tuple[pl.DataFrame, pl.DataFrame]:
     """
     Finds rows with the same keys but different values, and creates a detailed unpivoted report.
     This is done in one pass to avoid multiple joins.
@@ -298,7 +299,7 @@ def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list
 
     return renamed_mismatches, unpivoted_mismatches
 
-def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2", mapping_file: Optional[str] = None) -> tuple:
+def compare_dataframes(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2", mapping_file: Optional[str] = None) -> tuple:
     """
     Compares two Polars DataFrames and returns a comprehensive analysis including missing rows,
     mismatches, duplicates, and an unpivoted mismatch report.
@@ -312,7 +313,9 @@ def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], fi
     if mapping_file:
         print("Applying column mapping...")
         column_mapper = ColumnMapper(mapping_file)
-        df1, df2, mapped_keys = column_mapper.apply_mapping(df1, df2)
+        df1, df2, mapped_keys = column_mapper.apply_mapping(df1.collect(), df2.collect())
+        df1 = df1.lazy()
+        df2 = df2.lazy()
 
         # Use mapped keys if available, otherwise fall back to provided keys
         if mapped_keys:
