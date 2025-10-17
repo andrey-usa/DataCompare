@@ -153,8 +153,8 @@ def get_file_header(path: str) -> list[str]:
         print(f"Could not read header from {os.path.basename(path)}: {e}", file=sys.stderr)
         return []
 
-def read_file(path: str) -> pl.DataFrame:
-    """Reads a single file (Excel or CSV) into a Polars DataFrame."""
+def read_file(path: str) -> pl.LazyFrame:
+    """Reads a single file (Excel or CSV) into a Polars LazyFrame."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
 
@@ -162,9 +162,9 @@ def read_file(path: str) -> pl.DataFrame:
 
     try:
         if file_ext.endswith('.csv'):
-            return pl.read_csv(path)
+            return pl.scan_csv(path)
         elif file_ext.endswith(('.xlsx', '.xls')):
-            return pl.read_excel(path, engine='calamine')
+            return pl.scan_excel(path, engine='calamine')
         else:
             raise ValueError(f"Unsupported file format: {path}. Supported formats: .csv, .xlsx, .xls")
     except Exception as e:
@@ -206,7 +206,7 @@ def find_missing_rows(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str]) -> 
     missing_in_df1 = df2.join(df1, on=keys, how='anti')
     return missing_in_df2, missing_in_df1
 
-def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.DataFrame:
+def find_duplicates(df: pl.LazyFrame, key_columns: list, file_name: str) -> pl.LazyFrame:
     """Finds duplicate rows based on key columns."""
     return (
         df
@@ -298,7 +298,7 @@ def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list
 
     return renamed_mismatches, unpivoted_mismatches
 
-def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2", mapping_file: Optional[str] = None) -> tuple:
+def compare_dataframes(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2", mapping_file: Optional[str] = None) -> tuple:
     """
     Compares two Polars DataFrames and returns a comprehensive analysis including missing rows,
     mismatches, duplicates, and an unpivoted mismatch report.
