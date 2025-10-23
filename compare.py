@@ -153,8 +153,8 @@ def get_file_header(path: str) -> list[str]:
         print(f"Could not read header from {os.path.basename(path)}: {e}", file=sys.stderr)
         return []
 
-def read_file(path: str) -> pl.DataFrame:
-    """Reads a single file (Excel or CSV) into a Polars DataFrame."""
+def read_file(path: str) -> pl.LazyFrame:
+    """Reads a single file (Excel or CSV) into a Polars LazyFrame."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
 
@@ -162,9 +162,9 @@ def read_file(path: str) -> pl.DataFrame:
 
     try:
         if file_ext.endswith('.csv'):
-            return pl.read_csv(path)
+            return pl.scan_csv(path)
         elif file_ext.endswith(('.xlsx', '.xls')):
-            return pl.read_excel(path, engine='calamine')
+            return pl.scan_excel(path, engine='calamine')
         else:
             raise ValueError(f"Unsupported file format: {path}. Supported formats: .csv, .xlsx, .xls")
     except Exception as e:
@@ -177,11 +177,11 @@ def _read_file_with_progress(args):
     start_time = datetime.now()
     df = read_file(path)
     elapsed = (datetime.now() - start_time).total_seconds()
-    print(f"  Completed file {file_num} in {elapsed:.2f} seconds ({len(df)} rows)")
+    print(f"  Completed file {file_num} in {elapsed:.2f} seconds")
     return df
 
-def read_files_in_parallel(file1_path: str, file2_path: str) -> tuple[pl.DataFrame, pl.DataFrame]:
-    """Reads two files in parallel, showing progress."""
+def read_files_in_parallel(file1_path: str, file2_path: str) -> tuple[pl.LazyFrame, pl.LazyFrame]:
+    """Reads two files in parallel as LazyFrames, showing progress."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         future1 = executor.submit(_read_file_with_progress, (file1_path, 1))
         future2 = executor.submit(_read_file_with_progress, (file2_path, 2))
@@ -298,7 +298,7 @@ def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list
 
     return renamed_mismatches, unpivoted_mismatches
 
-def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2", mapping_file: Optional[str] = None) -> tuple:
+def compare_dataframes(df1: pl.LazyFrame, df2: pl.LazyFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2", mapping_file: Optional[str] = None) -> tuple:
     """
     Compares two Polars DataFrames and returns a comprehensive analysis including missing rows,
     mismatches, duplicates, and an unpivoted mismatch report.
@@ -323,6 +323,8 @@ def compare_dataframes(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], fi
         print(f"Mapping summary:\n{column_mapper.get_mapping_summary()}")
         sys.stdout.flush()
 
+    df1 = df1.collect()
+    df2 = df2.collect()
     df1_shape = df1.shape
     df2_shape = df2.shape
 
