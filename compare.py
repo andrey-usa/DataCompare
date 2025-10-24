@@ -201,15 +201,15 @@ def create_output_folder() -> str:
     return folder_name
 
 def find_missing_rows(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str]) -> tuple:
-    """Finds rows that are in one dataframe but not the other."""
-    missing_in_df2 = df1.join(df2, on=keys, how='anti')
-    missing_in_df1 = df2.join(df1, on=keys, how='anti')
+    """Finds rows that are in one dataframe but not the other using lazy execution."""
+    missing_in_df2 = df1.lazy().join(df2.lazy(), on=keys, how='anti').collect()
+    missing_in_df1 = df2.lazy().join(df1.lazy(), on=keys, how='anti').collect()
     return missing_in_df2, missing_in_df1
 
 def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.DataFrame:
-    """Finds duplicate rows based on key columns."""
+    """Finds duplicate rows based on key columns using lazy execution."""
     return (
-        df
+        df.lazy()
         .with_row_index("_row_idx")
         .with_columns([
             pl.concat_str([pl.col(k).cast(pl.Utf8) for k in key_columns], separator="|").alias("_combined_key")
@@ -221,6 +221,7 @@ def find_duplicates(df: pl.DataFrame, key_columns: list, file_name: str) -> pl.D
         .with_columns(pl.lit(file_name).alias("source_file"))
         .drop(["_row_idx", "_combined_key", "_key_count"])
         .sort(key_columns)
+        .collect()
     )
 
 def find_mismatches_and_unpivot(df1: pl.DataFrame, df2: pl.DataFrame, keys: list[str], file1_name: str = "file1", file2_name: str = "file2") -> tuple[pl.DataFrame, pl.DataFrame]:
