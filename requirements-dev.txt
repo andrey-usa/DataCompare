@@ -4,8 +4,5 @@
 # refactoring workflow. They are not needed at runtime, but should be
 # installed in development and CI environments.
 
-pytest
-pytest-benchmark
-ruff
-black
-aider-chat  # AI coding assistant from https://aider.chat (PyPI package: aider-chat)
+pytest>=8.4.2
+ruff>=0.8.4
